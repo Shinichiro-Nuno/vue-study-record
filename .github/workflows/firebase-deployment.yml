@@ -1,0 +1,61 @@
+# Firebaseにデプロイする
+name: Firebase Deployment
+
+on:
+  # mainブランチにpushされたらデプロイする
+  push:
+    branches:
+      - main
+
+  # 手動でデプロイする
+  workflow_dispatch:
+
+jobs:
+  # ビルドする
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      # リポジトリをチェックアウトする
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          npm install
+          npm install -D @rollup/rollup-linux-x64-gnu
+
+      - name: Run Tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Archive Production Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist # 保存時の名前
+          path: dist # アップロードするディレクトリ
+
+  # Firebaseにデプロイする
+  deploy:
+    name: Deploy
+    # ビルドが完了してからデプロイする
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Deploy to Firebase
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
